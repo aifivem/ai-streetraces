@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/aifivem/ai-streetraces/compare/v0.1.1...v0.1.2) (2026-10-31)
+
+
+### Miscellaneous Chores
+
+* rebuild with the current lib ([510d630](https://github.com/aifivem/ai-streetraces/commit/510d6300bb8b7b21d91c76409a7cf626ebb1829e))
+
 ## [0.1.1](https://github.com/aifivem/ai-streetraces/compare/v0.1.0...v0.1.1) (2026-10-31)
 
 
