@@ -1,0 +1,66 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ai-streetraces/data/settings.json",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "This file's JSON Schema (for editors)."
+    },
+    "account": {
+      "description": "Money account: The account buy-ins are taken from and prizes and refunds are paid to.",
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 32
+    },
+    "minBuyIn": {
+      "description": "Lowest buy-in: The smallest buy-in a player may set; 0 allows free races.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000000
+    },
+    "maxBuyIn": {
+      "description": "Highest buy-in: The largest buy-in a player may set; not below the lowest buy-in.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10000000
+    },
+    "joinSeconds": {
+      "description": "Join time: How long invited drivers have to join; the host can start earlier. A 5 second countdown follows.",
+      "type": "integer",
+      "minimum": 15,
+      "maximum": 300
+    },
+    "maxRacers": {
+      "description": "Racers per race: The most racers one race takes, the host included.",
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 16
+    },
+    "inviteRadius": {
+      "description": "Invitation distance: Drivers this close to the host get the invitation; racers must stay this close (plus 25 m) to the start.",
+      "type": "integer",
+      "minimum": 10,
+      "maximum": 400
+    },
+    "minDistance": {
+      "description": "Shortest race: The straight-line distance from the start to the waypoint must be at least this.",
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 10000
+    },
+    "maxMinutes": {
+      "description": "Time limit: A race nobody finishes in this time ends and the pot is split between the racers still in it.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 60
+    },
+    "alertChance": {
+      "description": "Alert chance: The chance that a race start sends a police alert at the start line; 0 never alerts.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    }
+  },
+  "required": []
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "./schemas/settings.schema.json",
+  "account": "cash",
+  "minBuyIn": 100,
+  "maxBuyIn": 15000,
+  "joinSeconds": 45,
+  "maxRacers": 8,
+  "inviteRadius": 60,
+  "minDistance": 500,
+  "maxMinutes": 10,
+  "alertChance": 25
+}
