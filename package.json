@@ -7,7 +7,7 @@
   "author": {
     "name": "TGIANN"
   },
-  "repository": "github:TGIANN/ai-streetraces",
+  "repository": "github:aifivem/ai-streetraces",
   "type": "module",
   "fxDependencies": [
     "/onesync",

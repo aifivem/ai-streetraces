@@ -583,7 +583,7 @@ function langFile(resource) {
 		return {};
 	}
 }
-function texts(resource) {
+function texts$1(resource) {
 	return {
 		...langFile("ai-core"),
 		...langFile(resource)
@@ -677,7 +677,7 @@ function objectOf(fields, prefix, desc) {
 	};
 }
 function fileSchema(resource, schema, name, spec) {
-	let desc = describe(schema, name, texts(resource)), title = `${resource}/data/${name}.json`, body = spec.kind === "settings" ? (() => {
+	let desc = describe(schema, name, texts$1(resource)), title = `${resource}/data/${name}.json`, body = spec.kind === "settings" ? (() => {
 		let obj = objectOf(spec.sections, "", desc), required = obj.required.filter((k) => !(k in (spec.defaults ?? {})));
 		return {
 			...obj,
@@ -1034,8 +1034,73 @@ on(CORE.playerUnloadedEvent, (source) => {
 	settle && settle(!1);
 });
 // ../../../packages/lib/src/server/command.ts
-const resource = GetCurrentResourceName();
-createLogger(resource), new class {
+const resource = GetCurrentResourceName(), log$2 = createLogger(resource);
+let texts = null;
+const t = (key, ...args) => formatText((texts ??= loadLocaleTexts(CORE.resource))[key] ?? key, args);
+function reply(source, text, kind) {
+	source > 0 ? notify(source, text, kind) : log$2.info(text);
+}
+var Command = class {
+	params;
+	handler;
+	info;
+	usage;
+	constructor(names, params, help, aces, handler) {
+		this.params = params, this.handler = handler, this.info = {
+			names,
+			help,
+			params: params.map((p) => ({ ...p })),
+			aces
+		}, this.usage = [`/${names[0]}`, ...params.map((p) => p.optional ? `[${p.name}]` : `<${p.name}>`)].join(" ");
+	}
+	allowed(source, name) {
+		let aces = this.info.aces;
+		if (source <= 0 || !aces) return !0;
+		let player = String(source);
+		return aces.some((ace) => IsPlayerAceAllowed(player, ace)) || !!IsPlayerAceAllowed(player, `command.${name}`);
+	}
+	suggestion(name) {
+		return {
+			name: `/${name}`,
+			help: this.info.help,
+			params: this.params.map((p) => ({
+				name: p.name,
+				help: p.help ?? ""
+			}))
+		};
+	}
+	run(source, name, raw, line) {
+		if (!this.allowed(source, name)) return reply(source, t("COMMAND_NOT_ALLOWED"), "error");
+		let args = this.parse(raw);
+		if (typeof args == "string") return reply(source, args, "error"), reply(source, t("COMMAND_USAGE", this.usage), "info");
+		let fail = (error) => log$2.error(`command /${name} failed`, error);
+		try {
+			let result = this.handler(source, args, line);
+			result instanceof Promise && result.catch(fail);
+		} catch (error) {
+			fail(error);
+		}
+	}
+	parse(raw) {
+		let args = {};
+		for (let [i, param] of this.params.entries()) {
+			let token = param.type === "longString" ? raw.slice(i).join(" ").trim() : raw[i] ?? "";
+			if (token === "") {
+				if (!param.optional) return t("COMMAND_MISSING", param.name);
+			} else {
+				if (param.type === "number" || param.type === "playerId") {
+					let value = Number(token);
+					if (!Number.isFinite(value)) return t("COMMAND_NUMBER", param.name);
+					if (param.type === "playerId" && (!Number.isInteger(value) || value <= 0 || !GetPlayerName(String(value)))) return t("COMMAND_PLAYER", token);
+					args[param.name] = value;
+				} else args[param.name] = token;
+				if (param.type === "longString") break;
+			}
+		}
+		return args;
+	}
+};
+const commands = new class {
 	list = [];
 	sent = new Map();
 	announced = 0;
@@ -1060,7 +1125,15 @@ createLogger(resource), new class {
 			if (name === resource) for (let command of this.list) for (let n of command.info.names) emitNet("chat:removeSuggestion", -1, `/${n}`);
 		});
 	}
-}(), createLogger(GetCurrentResourceName()), createLogger("aicore-lib");
+}();
+function addCommand(name, options, handler) {
+	let names = (Array.isArray(name) ? name : [name]).map((n) => n.toLowerCase());
+	if (names.length === 0) throw Error("addCommand needs a name");
+	let restricted = options.restricted ?? !1, aces = restricted === !1 ? null : restricted === !0 ? [ADMIN.ace] : Array.isArray(restricted) ? [...restricted] : [restricted], command = new Command(names, options.params ?? [], options.help ?? "", aces, handler);
+	for (let n of names) RegisterCommand(n, (source, raw, line) => command.run(Number(source), n, raw, line), !1);
+	commands.add(command);
+}
+createLogger(GetCurrentResourceName()), createLogger("aicore-lib");
 // ../../../packages/lib/src/fivem/scheduler.ts
 var Group = class {
 	interval;
@@ -1156,6 +1229,7 @@ const Locale = createLocale(), ResourceName = GetCurrentResourceName();
 IsDuplicityVersion();
 // resource/common/race.ts
 const EVENTS = {
+	openMenu: "ai-streetraces:client:openMenu",
 	create: "ai-streetraces:create",
 	join: "ai-streetraces:join",
 	leave: "ai-streetraces:leave",
@@ -1638,4 +1712,6 @@ onClientCallback(EVENTS.create, {
 		count: 4,
 		windowMs: 2e3
 	}
+}), addCommand("race", { help: Locale("COMMAND_RACE_HELP") }, (source) => {
+	source > 0 && emitNet(EVENTS.openMenu, source);
 });

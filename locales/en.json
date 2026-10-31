@@ -75,5 +75,6 @@
   "ADMIN_C_POLICE": "Police",
   "ADMIN_C_POLICE_DESC": "Alerts go through the alert system ai-core uses.",
   "ADMIN_F_ALERT_CHANCE": "Alert chance",
-  "ADMIN_H_ALERT_CHANCE": "The chance that a race start sends a police alert at the start line; 0 never alerts."
+  "ADMIN_H_ALERT_CHANCE": "The chance that a race start sends a police alert at the start line; 0 never alerts.",
+  "COMMAND_RACE_HELP": "Open the street race menu (create, join, start, leave)"
 }

@@ -25,6 +25,10 @@ radial.add({
   canShow: () => racing.current !== null || invites.size > 0 || isDriver(),
   onPressed: () => void openMenu(racing, invites, settings.value),
 });
+// The same menu from `/race` for servers without a radial menu.
+onServerEvent(EVENTS.openMenu, () => {
+  void openMenu(racing, invites, settings.value);
+});
 
 /** `[value, number]` events: a parsed value, then the server time or the pot. */
 const pair =

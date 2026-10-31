@@ -11,6 +11,8 @@ import {
 /** ai-streetraces' contracts and panel content. No natives. */
 
 export const EVENTS = {
+  /** Server -> player: () opens the race menu (the `/race` command; the radial entry opens it on the client). */
+  openMenu: "ai-streetraces:client:openMenu",
   /** Callback: (buyIn, finishX, finishY) -> { ok } creates a race from the player's position to the finish. */
   create: "ai-streetraces:create",
   /** Callback: (raceId) -> { ok } joins a race the player was invited to (pays the buy-in). */

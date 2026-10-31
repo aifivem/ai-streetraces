@@ -1,4 +1,5 @@
 import {
+  addCommand,
   AdminPanel,
   aiLogChannels,
   hasCharacter,
@@ -12,7 +13,7 @@ import {
   readInt,
   record,
 } from "@aicore-fivem/lib/shared";
-import { ResourceName } from "common";
+import { Locale, ResourceName } from "common";
 import { EVENTS, readCoord, readSettings } from "common/race";
 import { Races } from "./races";
 import { streetracesSchema } from "./schema";
@@ -85,3 +86,8 @@ onClientCallback(
     races.of(source)?.finish(source) ? { ok: true } : fail("RACE_ERR_FINISH"),
   { lock: true, rate: { count: 4, windowMs: 2000 } },
 );
+
+// The race menu for servers without a radial menu (the radial entry opens the same menu).
+addCommand("race", { help: Locale("COMMAND_RACE_HELP") }, (source) => {
+  if (source > 0) emitNet(EVENTS.openMenu, source);
+});
