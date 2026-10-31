@@ -240,6 +240,7 @@ const CORE = {
 	clientDefinitionsEvent: "ai-core:client:definitions",
 	vehicleTypeCallback: "ai-core:vehicleType",
 	interactionStateKey: "ai:interaction",
+	pvpStateKey: "ai:pvp",
 	charactersCallback: "ai-core:characters",
 	createCharacterCallback: "ai-core:createCharacter",
 	deleteCharacterCallback: "ai-core:deleteCharacter",
@@ -320,7 +321,7 @@ function isNear(source, point, metres) {
 	return dx * dx + dy * dy + dz * dz <= metres * metres;
 }
 // ../../../packages/lib/src/server/gate.ts
-const core$18 = resourceExport(CORE.resource), log$5 = createLogger(GetCurrentResourceName()), hasCharacter = () => (source) => core$18.GetCharacter(source) !== null || "no character loaded", gates = new Set();
+const core$18 = resourceExport(CORE.resource), log$6 = createLogger(GetCurrentResourceName()), hasCharacter = () => (source) => core$18.GetCharacter(source) !== null || "no character loaded", gates = new Set();
 on("playerDropped", () => {
 	let source = Number(globalThis.source);
 	for (let gate of gates) gate.release(source);
@@ -361,11 +362,11 @@ var ClientGate = class {
 		this.refusals.set(source, {
 			at: now,
 			skipped: 0
-		}), log$5.warn(`${this.name} refused for ${GetPlayerName(String(source))} (${source}): ${typeof reason == "string" ? reason : reason()}${more}`);
+		}), log$6.warn(`${this.name} refused for ${GetPlayerName(String(source))} (${source}): ${typeof reason == "string" ? reason : reason()}${more}`);
 	}
 };
 // ../../../packages/lib/src/server/callback.ts
-const log$4 = createLogger(GetCurrentResourceName()), resource$1 = GetCurrentResourceName(), REFUSED = Symbol("refused");
+const log$5 = createLogger(GetCurrentResourceName()), resource$1 = GetCurrentResourceName(), REFUSED = Symbol("refused");
 function onClientCallback(name, first, second) {
 	let [handler, options] = typeof first == "function" ? [first, second ?? {}] : [second, first], gate = new ClientGate(name, options, 20);
 	onNet(requestEvent(name), async (caller, id, ...raw) => {
@@ -377,7 +378,7 @@ function onClientCallback(name, first, second) {
 			let result = await gate.run(source, REFUSED, () => handler(source, ...args));
 			result === REFUSED ? emitNet(responseEvent(caller), source, id, !1, null) : emitNet(responseEvent(caller), source, id, !0, result ?? null);
 		} catch (error) {
-			log$4.error(`callback ${name} failed for ${source}`, error), emitNet(responseEvent(caller), source, id, !1, null);
+			log$5.error(`callback ${name} failed for ${source}`, error), emitNet(responseEvent(caller), source, id, !1, null);
 		}
 	});
 }
@@ -723,7 +724,7 @@ var AdminPanel = class {
 	constructor(schema) {
 		this.schema = schema;
 		for (let [name, spec] of Object.entries(schema.files)) this.load(name, spec);
-		registerExport("AdminPanelSnapshot", () => this.snapshot()), registerExport("AdminPanelSummary", () => this.summary()), registerExport("AdminPanelApply", (admin, patch) => this.apply(admin, patch)), onClientCallback(ADMIN.worldChangesCallback(this.resource), () => Object.fromEntries(this.worldChanges), { rate: {
+		registerExport("AdminPanelSnapshot", () => this.snapshot()), registerExport("AdminPanelData", () => this.dataSnapshot()), registerExport("AdminPanelSummary", () => this.summary()), registerExport("AdminPanelApply", (admin, patch) => this.apply(admin, patch)), onClientCallback(ADMIN.worldChangesCallback(this.resource), () => Object.fromEntries(this.worldChanges), { rate: {
 			count: 4,
 			windowMs: 1e4
 		} }), setImmediate(() => core$16.RegisterAdminPanel(this.resource));
@@ -751,8 +752,11 @@ var AdminPanel = class {
 			resource: this.resource,
 			schema: this.schema,
 			texts: loadLocaleTexts(),
-			data: clone(Object.fromEntries(this.data))
+			data: this.dataSnapshot()
 		};
+	}
+	dataSnapshot() {
+		return clone(Object.fromEntries(this.data));
 	}
 	summary() {
 		let data = {}, index = {};
@@ -1026,7 +1030,7 @@ function playersNear(source, radius) {
 	return within(coordsOf(source), radius, [source, ...core$12.GetPlayersInScope(source)]);
 }
 // ../../../packages/lib/src/server/players.ts
-const log$3 = createLogger(GetCurrentResourceName()), dropped = new Set();
+const log$4 = createLogger(GetCurrentResourceName()), dropped = new Set();
 let listening = !1;
 function onDropped(fn) {
 	listening || (listening = !0, on("playerDropped", () => {
@@ -1047,15 +1051,15 @@ function onCharacter(handlers) {
 	let live = new Map(), deliver = (source, character) => {
 		if (live.set(source, character.id), handlers.loaded) try {
 			let result = handlers.loaded(source, character);
-			result instanceof Promise && result.catch((error) => log$3.error(`character loaded handler failed for ${source}`, error));
+			result instanceof Promise && result.catch((error) => log$4.error(`character loaded handler failed for ${source}`, error));
 		} catch (error) {
-			log$3.error(`character loaded handler failed for ${source}`, error);
+			log$4.error(`character loaded handler failed for ${source}`, error);
 		}
 	}, end = (source, charId) => {
 		if (live.delete(source)) try {
 			handlers.unloaded?.(source, charId);
 		} catch (error) {
-			log$3.error(`character unloaded handler failed for ${source}`, error);
+			log$4.error(`character unloaded handler failed for ${source}`, error);
 		}
 	};
 	on(CORE.playerLoadedEvent, (source, character) => {
@@ -1098,11 +1102,11 @@ new class {
 	}
 }();
 // ../../../packages/lib/src/server/command.ts
-const resource = GetCurrentResourceName(), log$2 = createLogger(resource);
+const resource = GetCurrentResourceName(), log$3 = createLogger(resource);
 let texts = null;
 const t = (key, ...args) => formatText((texts ??= loadLocaleTexts(CORE.resource))[key] ?? key, args);
 function reply(source, text, kind) {
-	source > 0 ? notify(source, text, kind) : log$2.info(text);
+	source > 0 ? notify(source, text, kind) : log$3.info(text);
 }
 var Command = class {
 	params;
@@ -1137,7 +1141,7 @@ var Command = class {
 		if (!this.allowed(source, name)) return reply(source, t("COMMAND_NOT_ALLOWED"), "error");
 		let args = this.parse(raw);
 		if (typeof args == "string") return reply(source, args, "error"), reply(source, t("COMMAND_USAGE", this.usage), "info");
-		let fail = (error) => log$2.error(`command /${name} failed`, error);
+		let fail = (error) => log$3.error(`command /${name} failed`, error);
 		try {
 			let result = this.handler(source, args, line);
 			result instanceof Promise && result.catch(fail);
@@ -1198,8 +1202,47 @@ function addCommand(name, options, handler) {
 	commands.add(command);
 }
 createLogger(GetCurrentResourceName()), createLogger("aicore-lib");
-// ../../../packages/lib/src/fivem/scheduler.ts
-var Group = class {
+let log = null;
+var ScheduledJob = class {
+	interval;
+	fn;
+	name;
+	gen = 0;
+	active = !1;
+	stopped = !1;
+	quietUntil = 0;
+	skipped = 0;
+	constructor(interval, fn, name) {
+		this.interval = interval, this.fn = fn, this.name = name;
+	}
+	get running() {
+		return this.active;
+	}
+	set(active) {
+		active === this.active || active && this.stopped || (this.active = active, active ? scheduler.activate(this) : scheduler.deactivate(this));
+	}
+	stop() {
+		this.set(!1), this.stopped = !0;
+	}
+	call() {
+		try {
+			let result = this.fn();
+			result instanceof Promise && result.catch((error) => this.fail(error));
+		} catch (error) {
+			this.fail(error);
+		}
+	}
+	fail(error) {
+		let now = GetGameTimer();
+		if (now < this.quietUntil) {
+			this.skipped++;
+			return;
+		}
+		this.quietUntil = now + 1e4;
+		let more = this.skipped ? ` (+${this.skipped} more)` : "";
+		this.skipped = 0, log ??= createLogger(GetCurrentResourceName()), log.error(`job "${this.name}" failed${more}`, error instanceof Error ? error.stack ?? error.message : error);
+	}
+}, Group = class {
 	interval;
 	jobs = Array(8);
 	gens = Array(8).fill(0);
@@ -1249,7 +1292,7 @@ var Group = class {
 		this.jobs = jobs, this.gens = gens, this.dues = dues, this.head = 0, this.mask = size - 1;
 	}
 };
-new class {
+const scheduler = new class {
 	groups = [];
 	byInterval = new Map();
 	tick = null;
@@ -1284,7 +1327,12 @@ new class {
 		}
 		groups.length = kept, this.nextDue = soonest;
 	};
-}(), IsDuplicityVersion(), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
+}();
+function every(ms, fn, options = {}) {
+	let job = new ScheduledJob(Math.max(0, Math.floor(ms)), fn, options.name ?? (fn.name || "anonymous"));
+	return options.active !== !1 && job.set(!0), job;
+}
+IsDuplicityVersion(), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
 // ../../../packages/lib/src/server/dispatch.ts
 const core$7 = resourceExport(CORE.resource), dispatch = { alert: (alert) => core$7.SendDispatchAlert(alert) };
 resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
@@ -1335,6 +1383,22 @@ const flatDistance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 function readCoord(value) {
 	let v = readFinite(value);
 	return v !== null && Math.abs(v) < 1e4 ? v : null;
+}
+function sampleHolds(source, last, now) {
+	let p = coordsOf(source), limit = 120 * (now - last.at) / 1e3 + 30;
+	return flatDistance(p, last) <= limit ? {
+		x: p.x,
+		y: p.y,
+		at: now
+	} : null;
+}
+function sampleOf(source, now) {
+	let p = coordsOf(source);
+	return {
+		x: p.x,
+		y: p.y,
+		at: now
+	};
 }
 function driving(source) {
 	let ped = GetPlayerPed(String(source)), vehicle = GetVehiclePedIsIn(ped, !1);
@@ -1394,6 +1458,7 @@ var StreetRace = class {
 	hooks;
 	racers = new Map();
 	invited = new Set();
+	samples = new Map();
 	startAt = 0;
 	over = !1;
 	timer;
@@ -1403,6 +1468,9 @@ var StreetRace = class {
 	}
 	get open() {
 		return this.startAt === 0 && !this.over;
+	}
+	get running() {
+		return this.startAt !== 0 && !this.over;
 	}
 	invite() {
 		let { id, hostName, buyIn, start, joinEndsAt } = this.o;
@@ -1456,15 +1524,32 @@ var StreetRace = class {
 		if (this.racers.size < 2) return this.cancel("RACE_CANCELLED_EMPTY"), null;
 		let now = Date.now();
 		this.startAt = now + COUNTDOWN_MS;
+		for (let source of this.racers.keys()) this.samples.set(source, sampleOf(source, now));
 		for (let source of this.racers.keys()) emitNet(EVENTS.start, source, this.startAt, now);
 		return this.timer = setTimeout(() => this.timeout(), COUNTDOWN_MS + this.o.maxMs), aiLog("races", `race ${this.o.id} started`, { metadata: {
 			racers: this.racers.size,
 			pot: this.purse.pot
 		} }), maybeAlertPolice(this.o.alertChance, this.o.start, this.racers.size, this.racers.keys().next().value), null;
 	}
+	sample(now) {
+		if (this.running) for (let source of this.racers.keys()) this.moveHolds(source, now);
+	}
+	moveHolds(source, now) {
+		let last = this.samples.get(source), next = last ? sampleHolds(source, last, now) : sampleOf(source, now);
+		return next ? (this.samples.set(source, next), !0) : (aiLog("races", `disqualified from race ${this.o.id}: moved too fast`, {
+			level: "warn",
+			source,
+			metadata: {
+				from: last,
+				to: sampleOf(source, now)
+			}
+		}), this.remove(source, !1), notify(source, Locale("RACE_DISQUALIFIED"), "error"), this.racers.size === 0 && this.end(), !1);
+	}
 	finish(source) {
 		if (!this.racers.has(source) || this.over || this.startAt === 0) return !1;
-		let elapsed = Date.now() - this.startAt;
+		let now = Date.now();
+		if (!this.moveHolds(source, now)) return !1;
+		let elapsed = now - this.startAt;
 		if (!finishHolds(source, this.o, elapsed)) return !1;
 		let pot = this.purse.takeAll();
 		this.purse.pay(source, pot, "streetrace:won");
@@ -1491,7 +1576,7 @@ var StreetRace = class {
 		this.end();
 	}
 	remove(source, refund) {
-		this.racers.delete(source), refund && this.purse.refund(source), this.hooks.out(source), emitNet(EVENTS.ended, source);
+		this.racers.delete(source), this.samples.delete(source), refund && this.purse.refund(source), this.hooks.out(source), emitNet(EVENTS.ended, source);
 		for (let other of this.racers.keys()) emitNet(EVENTS.racerLeft, other, source, this.purse.pot);
 	}
 	uninviteAll() {
@@ -1502,16 +1587,25 @@ var StreetRace = class {
 		let forfeited = this.purse.takeAll();
 		forfeited > 0 && aiLog("races", `race ${this.o.id} ended with buy-ins forfeited`, { metadata: { forfeited } }), this.over = !0, clearTimeout(this.timer), this.uninviteAll();
 		for (let source of this.racers.keys()) this.hooks.out(source), emitNet(EVENTS.ended, source);
-		this.racers.clear(), this.hooks.ended(this);
+		this.racers.clear(), this.samples.clear(), this.hooks.ended(this);
 	}
 }, Races = class {
 	settings;
 	byId = new Map();
 	byRacer = new Map();
 	nextId = 1;
+	sampler = every(2e3, () => {
+		let now = Date.now();
+		for (let race of this.byId.values()) race.sample(now);
+	}, {
+		active: !1,
+		name: "race positions"
+	});
 	hooks = {
 		out: (source) => this.byRacer.delete(source),
-		ended: (race) => this.byId.delete(race.o.id)
+		ended: (race) => {
+			this.byId.delete(race.o.id), this.byId.size === 0 && this.sampler.set(!1);
+		}
 	};
 	constructor(settings) {
 		this.settings = settings;
@@ -1541,7 +1635,7 @@ var StreetRace = class {
 			alertChance: s.alertChance
 		}, this.hooks), error = race.join(source, race.o.hostName);
 		if (error) return race.cancel("RACE_CANCELLED_EMPTY"), error;
-		this.byId.set(race.o.id, race), this.byRacer.set(source, race);
+		this.byId.set(race.o.id, race), this.byRacer.set(source, race), this.sampler.set(!0);
 		let now = Date.now();
 		for (let other of playersNear(source, s.inviteRadius)) other === source || this.byRacer.has(other) || online.character(other) && (race.invited.add(other), emitNet(EVENTS.invite, other, race.invite(), now));
 		return notify(source, Locale("RACE_CREATED", race.invited.size, s.joinSeconds), "success", 6e3), null;

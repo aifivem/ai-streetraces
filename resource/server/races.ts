@@ -1,5 +1,6 @@
 import {
   coordsOf,
+  every,
   isNear,
   notify,
   online,
@@ -12,15 +13,29 @@ import { StreetRace, type RaceHooks } from "./race";
 
 /** Extra metres around the invite radius a racer may stand from the start (joining, and when the join time ends). */
 const READY_SLACK = 25;
+/** How often running races sample their racers' server positions. */
+const SAMPLE_MS = 2000;
 
 /** Every street race and who is in which; one race per player. */
 export class Races {
   private readonly byId = new Map<number, StreetRace>();
   private readonly byRacer = new Map<number, StreetRace>();
   private nextId = 1;
+  /** One job for every race, on while any race exists. */
+  private readonly sampler = every(
+    SAMPLE_MS,
+    () => {
+      const now = Date.now();
+      for (const race of this.byId.values()) race.sample(now);
+    },
+    { active: false, name: "race positions" },
+  );
   private readonly hooks: RaceHooks = {
     out: (source) => this.byRacer.delete(source),
-    ended: (race) => this.byId.delete(race.o.id),
+    ended: (race) => {
+      this.byId.delete(race.o.id);
+      if (this.byId.size === 0) this.sampler.set(false);
+    },
   };
 
   constructor(private readonly settings: { readonly value: Settings }) {}
@@ -66,6 +81,7 @@ export class Races {
     }
     this.byId.set(race.o.id, race);
     this.byRacer.set(source, race);
+    this.sampler.set(true);
     const now = Date.now();
     for (const other of playersNear(source, s.inviteRadius)) {
       if (other === source || this.byRacer.has(other)) continue;

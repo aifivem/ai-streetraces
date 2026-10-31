@@ -45,6 +45,7 @@
   "RACE_ERR_ALONE": "Wait for at least one more racer",
   "RACE_ERR_NONE": "You are not in a race",
   "RACE_ERR_FINISH": "Finish not counted",
+  "RACE_DISQUALIFIED": "Disqualified: you moved faster than any car can, your buy-in stays in the pot",
   "ALERT_TITLE": "Street race",
   "ALERT_MESSAGE": "{0} vehicles lining up for an illegal race",
   "ADMIN_TITLE": "Street races",

@@ -7,7 +7,14 @@ import {
   type InviteView,
   type RaceView,
 } from "common/race";
-import { driving, finishHolds, maybeAlertPolice } from "./checks";
+import {
+  driving,
+  finishHolds,
+  maybeAlertPolice,
+  type Sample,
+  sampleHolds,
+  sampleOf,
+} from "./checks";
 import { Purse } from "./purse";
 
 export interface RaceOptions {
@@ -47,6 +54,8 @@ export class StreetRace {
   readonly racers = new Map<number, string>();
   /** Players who got the invitation and have not joined. */
   readonly invited = new Set<number>();
+  /** Each racer's last server position since the countdown (teleport check). */
+  private readonly samples = new Map<number, Sample>();
   /** GO on the server clock; 0 while racers can join. */
   private startAt = 0;
   private over = false;
@@ -63,6 +72,11 @@ export class StreetRace {
 
   get open(): boolean {
     return this.startAt === 0 && !this.over;
+  }
+
+  /** The countdown or the race runs (positions are sampled). */
+  get running(): boolean {
+    return this.startAt !== 0 && !this.over;
   }
 
   invite(): InviteView {
@@ -136,6 +150,8 @@ export class StreetRace {
     const now = Date.now();
     this.startAt = now + COUNTDOWN_MS;
     for (const source of this.racers.keys())
+      this.samples.set(source, sampleOf(source, now));
+    for (const source of this.racers.keys())
       emitNet(EVENTS.start, source, this.startAt, now);
     this.timer = setTimeout(() => this.timeout(), COUNTDOWN_MS + this.o.maxMs);
     aiLog("races", `race ${this.o.id} started`, {
@@ -150,11 +166,38 @@ export class StreetRace {
     return null;
   }
 
-  /** A racer reports the finish: checked on the server (position, driver, plausible time); the first one wins. */
+  /** Checks every racer's move since the last sample (the registry's 2 s job); a teleport disqualifies. */
+  sample(now: number): void {
+    if (!this.running) return;
+    for (const source of this.racers.keys()) this.moveHolds(source, now);
+  }
+
+  /** The racer's move since his last sample is drivable; else he is disqualified and false. */
+  private moveHolds(source: number, now: number): boolean {
+    const last = this.samples.get(source);
+    const next = last ? sampleHolds(source, last, now) : sampleOf(source, now);
+    if (next) {
+      this.samples.set(source, next);
+      return true;
+    }
+    aiLog("races", `disqualified from race ${this.o.id}: moved too fast`, {
+      level: "warn",
+      source,
+      metadata: { from: last, to: sampleOf(source, now) },
+    });
+    this.remove(source, false);
+    notify(source, Locale("RACE_DISQUALIFIED"), "error");
+    if (this.racers.size === 0) this.end();
+    return false;
+  }
+
+  /** A racer reports the finish: checked on the server (steady moves, position, driver, plausible time); the first one wins. */
   finish(source: number): boolean {
     if (!this.racers.has(source) || this.over || this.startAt === 0)
       return false;
-    const elapsed = Date.now() - this.startAt;
+    const now = Date.now();
+    if (!this.moveHolds(source, now)) return false;
+    const elapsed = now - this.startAt;
     if (!finishHolds(source, this.o, elapsed)) return false;
     const pot = this.purse.takeAll();
     this.purse.pay(source, pot, "streetrace:won");
@@ -199,6 +242,7 @@ export class StreetRace {
 
   private remove(source: number, refund: boolean): void {
     this.racers.delete(source);
+    this.samples.delete(source);
     if (refund) this.purse.refund(source);
     this.hooks.out(source);
     emitNet(EVENTS.ended, source);
@@ -226,6 +270,7 @@ export class StreetRace {
       emitNet(EVENTS.ended, source);
     }
     this.racers.clear();
+    this.samples.clear();
     this.hooks.ended(this);
   }
 }

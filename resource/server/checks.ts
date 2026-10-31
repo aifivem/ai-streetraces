@@ -5,6 +5,34 @@ import { FINISH_RADIUS, flatDistance, MAX_SPEED } from "common/race";
 
 /** Slack on top of the finish radius for the server's position check (the client checks at the radius). */
 const FINISH_SLACK = 10;
+/** Fastest plausible speed (m/s, 430 km/h) between two server position samples of a racer. */
+const MAX_SEGMENT_SPEED = 120;
+/** Metres allowed on top of that per segment (position sync jitter). */
+const SEGMENT_SLACK = 30;
+
+/** A racer's last server position sample. */
+export interface Sample {
+  x: number;
+  y: number;
+  at: number;
+}
+
+/** The racer's position now, or null when he moved faster than a vehicle can since `last` (teleport). */
+export function sampleHolds(
+  source: number,
+  last: Sample,
+  now: number,
+): Sample | null {
+  const p = coordsOf(source);
+  const limit = (MAX_SEGMENT_SPEED * (now - last.at)) / 1000 + SEGMENT_SLACK;
+  return flatDistance(p, last) <= limit ? { x: p.x, y: p.y, at: now } : null;
+}
+
+/** The racer's position sample now. */
+export function sampleOf(source: number, now: number): Sample {
+  const p = coordsOf(source);
+  return { x: p.x, y: p.y, at: now };
+}
 
 /** The player drives a vehicle (only drivers race). */
 export function driving(source: number): boolean {
