@@ -7,9 +7,10 @@ import {
   playersNear,
 } from "@aicore-fivem/lib/server";
 import { Locale } from "common";
-import { EVENTS, flatDistance, type Settings } from "common/race";
+import { EVENTS, type Settings } from "common/race";
 import { driving } from "./checks";
 import { StreetRace, type RaceHooks } from "./race";
+import { flatDistance } from "@aicore-fivem/lib/shared";
 
 /** Extra metres around the invite radius a racer may stand from the start (joining, and when the join time ends). */
 const READY_SLACK = 25;

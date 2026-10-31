@@ -1,31 +1,21 @@
 import {
   cache,
   callAction,
+  drivenVehicle,
   input,
   menu,
   notify,
   player,
+  waypoint,
 } from "@aicore-fivem/lib/client";
 import type { MenuItem } from "@aicore-fivem/shared";
-import { groupDigits } from "@aicore-fivem/lib/shared";
+import { flatDistance, groupDigits } from "@aicore-fivem/lib/shared";
 import { Locale } from "common";
-import { EVENTS, flatDistance, type Settings } from "common/race";
+import { EVENTS, type Settings } from "common/race";
 import type { Invites } from "./invites";
 import type { Racing } from "./racing";
 
-/** GTA's waypoint blip sprite. */
-const WAYPOINT_SPRITE = 8;
-
-/** The map waypoint (x, y), or null. */
-function waypoint(): { x: number; y: number } | null {
-  const blip = GetFirstBlipInfoId(WAYPOINT_SPRITE);
-  if (!DoesBlipExist(blip)) return null;
-  const [x = 0, y = 0] = GetBlipInfoIdCoord(blip);
-  return { x, y };
-}
-
-export const isDriver = (): boolean =>
-  cache.vehicle !== false && cache.seat === -1;
+export const isDriver = (): boolean => drivenVehicle() !== false;
 
 const secondsLeft = (localTime: number): number =>
   Math.max(0, Math.ceil((localTime - Date.now()) / 1000));

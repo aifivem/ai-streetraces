@@ -1,7 +1,8 @@
-import { aiLog, coordsOf, dispatch } from "@aicore-fivem/lib/server";
+import { aiLog, coordsOf, dispatch, vehicleOf } from "@aicore-fivem/lib/server";
 import type { Vec3 } from "@aicore-fivem/lib/shared";
 import { Locale } from "common";
-import { FINISH_RADIUS, flatDistance, MAX_SPEED } from "common/race";
+import { FINISH_RADIUS, MAX_SPEED } from "common/race";
+import { flatDistance, rollChance } from "@aicore-fivem/lib/shared";
 
 /** Slack on top of the finish radius for the server's position check (the client checks at the radius). */
 const FINISH_SLACK = 10;
@@ -36,9 +37,7 @@ export function sampleOf(source: number, now: number): Sample {
 
 /** The player drives a vehicle (only drivers race). */
 export function driving(source: number): boolean {
-  const ped = GetPlayerPed(String(source));
-  const vehicle = GetVehiclePedIsIn(ped, false);
-  return vehicle !== 0 && GetPedInVehicleSeat(vehicle, -1) === ped;
+  return vehicleOf(source, { driver: true }) !== 0;
 }
 
 /**
@@ -74,7 +73,7 @@ export function maybeAlertPolice(
   racers: number,
   suspect: number | undefined,
 ): void {
-  if (Math.random() * 100 >= chance) return;
+  if (!rollChance(chance)) return;
   dispatch.alert({
     title: Locale("ALERT_TITLE"),
     message: Locale("ALERT_MESSAGE", racers),

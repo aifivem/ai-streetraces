@@ -7,7 +7,8 @@ import {
   Zones,
 } from "@aicore-fivem/lib/client";
 import { Locale } from "common";
-import { FINISH_RADIUS, flatDistance } from "common/race";
+import { flatDistance } from "@aicore-fivem/lib/shared";
+import { FINISH_RADIUS } from "common/race";
 
 /** Distance from the finish at which its marker is drawn. */
 const MARKER_RANGE = 300;
@@ -69,8 +70,8 @@ export class Finish {
       color: 5,
       scale: 1,
       shortRange: false,
+      route: true,
     });
-    SetBlipRoute(this.blip, true);
     this.watch.set(true);
   }
 

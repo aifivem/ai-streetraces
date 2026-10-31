@@ -5,6 +5,7 @@ import {
   hasCharacter,
   onCharacter,
   onClientCallback,
+  onStop,
 } from "@aicore-fivem/lib/server";
 import {
   fail,
@@ -13,7 +14,7 @@ import {
   readInt,
   record,
 } from "@aicore-fivem/lib/shared";
-import { Locale, ResourceName } from "common";
+import { Locale } from "common";
 import { EVENTS, readCoord, readSettings } from "common/race";
 import { Races } from "./races";
 import { streetracesSchema } from "./schema";
@@ -34,9 +35,7 @@ const races = new Races(settings);
 
 // The unload event comes before ai-core drops the character, so a refund still reaches the account.
 onCharacter({ unloaded: (source) => races.unloaded(source) });
-on("onResourceStop", (name: string) => {
-  if (name === ResourceName) races.cancelAll();
-});
+onStop(() => races.cancelAll());
 
 const answer = (error: string | null) => (error ? fail(error) : { ok: true });
 

@@ -1,5 +1,10 @@
-import { cache, callAction, notify } from "@aicore-fivem/lib/client";
-import { groupDigits } from "@aicore-fivem/lib/shared";
+import {
+  cache,
+  callAction,
+  drivenVehicle,
+  notify,
+} from "@aicore-fivem/lib/client";
+import { groupDigits, ServerClock } from "@aicore-fivem/lib/shared";
 import { Locale } from "common";
 import {
   COUNTDOWN_MS,
@@ -15,8 +20,8 @@ import { Finish } from "./finish";
  */
 export class Racing {
   private race: RaceView | null = null;
-  /** Local clock minus server clock, taken at the snapshot and the start. */
-  private offset = 0;
+  /** The server clock, synced at the snapshot and the start. */
+  private readonly clock = new ServerClock();
   private frozen = 0;
   private timers: Array<ReturnType<typeof setTimeout>> = [];
   private readonly finish = new Finish();
@@ -27,13 +32,13 @@ export class Racing {
 
   /** Local time of a server time. */
   local(serverTime: number): number {
-    return serverTime + this.offset;
+    return this.clock.toLocal(serverTime);
   }
 
   snapshot(view: RaceView, serverNow: number): void {
     this.stop();
     this.race = view;
-    this.offset = Date.now() - serverNow;
+    this.clock.sync(serverNow);
     this.finish.show(view.finish.x, view.finish.y);
     // The host already got the server's "created" note.
     if (view.host === cache.serverId) return;
@@ -76,10 +81,11 @@ export class Racing {
     const race = this.race;
     if (!race) return;
     race.startAt = startAt;
-    this.offset = Date.now() - serverNow;
+    this.clock.sync(serverNow);
     const startsIn = Math.max(0, startAt - serverNow);
-    if (cache.vehicle !== false && cache.seat === -1) {
-      this.frozen = cache.vehicle;
+    const vehicle = drivenVehicle();
+    if (vehicle !== false) {
+      this.frozen = vehicle;
       FreezeEntityPosition(this.frozen, true);
     }
     for (let s = Math.floor(COUNTDOWN_MS / 1000); s >= 1; s--)

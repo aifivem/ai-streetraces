@@ -3,6 +3,7 @@ import {
   readFinite,
   readId,
   readText,
+  readVec3,
   record,
   str,
   type Vec3,
@@ -119,23 +120,11 @@ export function readSettings(raw: unknown): Settings {
   };
 }
 
-/** Distance on the ground plane (the finish has no height). */
-export const flatDistance = (
-  a: { x: number; y: number },
-  b: { x: number; y: number },
-): number => Math.hypot(a.x - b.x, a.y - b.y);
-
 /** A map coordinate from client input, else null. */
 export function readCoord(value: unknown): number | null {
   const v = readFinite(value);
   return v !== null && Math.abs(v) < MAP_LIMIT ? v : null;
 }
-
-const readPoint = (value: unknown): Vec3 | null => {
-  const v = record(value);
-  const [x, y, z] = [readFinite(v.x), readFinite(v.y), readFinite(v.z)];
-  return x !== null && y !== null && z !== null ? { x, y, z } : null;
-};
 
 export function readRacer(value: unknown): RacerView | null {
   const v = record(value);
@@ -149,7 +138,7 @@ export function readInvite(value: unknown): InviteView | null {
   const id = readId(v.id);
   const hostName = readText(v.hostName, 64);
   const buyIn = readFinite(v.buyIn);
-  const start = readPoint(v.start);
+  const start = readVec3(v.start);
   const joinEndsAt = readFinite(v.joinEndsAt);
   return id === null ||
     hostName === null ||

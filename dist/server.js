@@ -56,7 +56,7 @@ const readId = (value) => readInt(value, 1, 2147483647), oneArg = (read) => ([va
 }, fail = (error) => ({
 	ok: !1,
 	error
-});
+}), flatDistance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y), rollChance = (percent) => Math.random() * 100 < percent;
 // ../../../packages/lib/src/shared/format.ts
 function groupDigits(value, separator = ",") {
 	let [whole = "", fraction] = String(value).split("."), grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
@@ -241,6 +241,8 @@ const CORE = {
 	vehicleTypeCallback: "ai-core:vehicleType",
 	interactionStateKey: "ai:interaction",
 	pvpStateKey: "ai:pvp",
+	medicalStateKey: "ai:medical",
+	clientDeadEvent: "ai-core:client:dead",
 	charactersCallback: "ai-core:characters",
 	createCharacterCallback: "ai-core:createCharacter",
 	deleteCharacterCallback: "ai-core:deleteCharacter",
@@ -316,6 +318,10 @@ function entityCoords(entity) {
 	};
 }
 const coordsOf = (source) => entityCoords(GetPlayerPed(String(source)));
+function vehicleOf(source, options = {}) {
+	let ped = GetPlayerPed(String(source)), vehicle = GetVehiclePedIsIn(ped, !1);
+	return !vehicle || !options.driver || GetPedInVehicleSeat(vehicle, -1) === ped ? vehicle : 0;
+}
 function isNear(source, point, metres) {
 	let [x = 0, y = 0, z = 0] = GetEntityCoords(GetPlayerPed(String(source))), dx = x - point.x, dy = y - point.y, dz = z - point.z;
 	return dx * dx + dy * dy + dz * dz <= metres * metres;
@@ -961,6 +967,9 @@ var OnlinePlayers = class {
 	character(source) {
 		return this.start(), this.players.get(source)?.character ?? null;
 	}
+	charId(source) {
+		return this.start(), this.players.get(source)?.character.id;
+	}
 	name(source, options = {}) {
 		let c = this.character(source);
 		return c ? `${c.firstname} ${c.lastname}` : options.fallback === !1 ? "" : GetPlayerName(String(source));
@@ -1031,9 +1040,9 @@ function playersNear(source, radius) {
 }
 // ../../../packages/lib/src/server/players.ts
 const log$4 = createLogger(GetCurrentResourceName()), dropped = new Set();
-let listening = !1;
+let listening$1 = !1;
 function onDropped(fn) {
-	listening || (listening = !0, on("playerDropped", () => {
+	listening$1 || (listening$1 = !0, on("playerDropped", () => {
 		let source = Number(globalThis.source);
 		for (let handler of dropped) handler(source);
 	})), dropped.add(fn);
@@ -1055,19 +1064,19 @@ function onCharacter(handlers) {
 		} catch (error) {
 			log$4.error(`character loaded handler failed for ${source}`, error);
 		}
-	}, end = (source, charId) => {
+	}, end = (source, charId, reason) => {
 		if (live.delete(source)) try {
-			handlers.unloaded?.(source, charId);
+			handlers.unloaded?.(source, charId, reason);
 		} catch (error) {
 			log$4.error(`character unloaded handler failed for ${source}`, error);
 		}
 	};
 	on(CORE.playerLoadedEvent, (source, character) => {
 		let previous = live.get(source);
-		previous !== void 0 && end(source, previous), deliver(source, character);
-	}), on(CORE.playerUnloadedEvent, (source, charId) => end(source, charId)), onDropped((source) => setImmediate(() => {
+		previous !== void 0 && end(source, previous, "switch"), deliver(source, character);
+	}), on(CORE.playerUnloadedEvent, (source, charId, reason) => end(source, charId, reason === "dropped" ? "dropped" : "switch")), onDropped((source) => setImmediate(() => {
 		let charId = live.get(source);
-		charId !== void 0 && end(source, charId);
+		charId !== void 0 && end(source, charId, "dropped");
 	})), setImmediate(() => {
 		for (let source of online.sources()) {
 			if (live.has(source)) continue;
@@ -1202,6 +1211,23 @@ function addCommand(name, options, handler) {
 	commands.add(command);
 }
 createLogger(GetCurrentResourceName()), createLogger("aicore-lib");
+// ../../../packages/lib/src/fivem/byResource.ts
+const stopHandlers = [];
+let listening = !1;
+function onAnyStop(handler) {
+	if (stopHandlers.push(handler), listening) return;
+	listening = !0;
+	let event = IsDuplicityVersion() ? "onResourceStop" : "onClientResourceStop";
+	on(event, (resource) => {
+		for (let stop of stopHandlers) stop(resource);
+	});
+}
+function onStop(fn) {
+	let self = GetCurrentResourceName();
+	onAnyStop((resource) => {
+		resource === self && fn();
+	});
+}
 let log = null;
 var ScheduledJob = class {
 	interval;
@@ -1337,8 +1363,8 @@ IsDuplicityVersion(), resourceExport(CORE.resource), resourceExport(CORE.resourc
 const core$7 = resourceExport(CORE.resource), dispatch = { alert: (alert) => core$7.SendDispatchAlert(alert) };
 resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
 // resource/common/locale.ts
-const Locale = createLocale(), ResourceName = GetCurrentResourceName();
-IsDuplicityVersion();
+const Locale = createLocale();
+GetCurrentResourceName(), IsDuplicityVersion();
 // resource/common/race.ts
 const EVENTS = {
 	openMenu: "ai-streetraces:client:openMenu",
@@ -1379,7 +1405,6 @@ function readSettings(raw) {
 		alertChance: int(s.alertChance, d.alertChance, 0, 100)
 	};
 }
-const flatDistance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 function readCoord(value) {
 	let v = readFinite(value);
 	return v !== null && Math.abs(v) < 1e4 ? v : null;
@@ -1401,8 +1426,7 @@ function sampleOf(source, now) {
 	};
 }
 function driving(source) {
-	let ped = GetPlayerPed(String(source)), vehicle = GetVehiclePedIsIn(ped, !1);
-	return vehicle !== 0 && GetPedInVehicleSeat(vehicle, -1) === ped;
+	return vehicleOf(source, { driver: !0 }) !== 0;
 }
 function finishHolds(source, race, elapsed) {
 	return elapsed < 0 || flatDistance(coordsOf(source), race.finish) > 22 || !driving(source) ? !1 : elapsed >= flatDistance(race.start, race.finish) / 100 * 1e3 || (aiLog("races", `implausible finish in race ${race.id}`, {
@@ -1412,7 +1436,7 @@ function finishHolds(source, race, elapsed) {
 	}), !1);
 }
 function maybeAlertPolice(chance, start, racers, suspect) {
-	Math.random() * 100 >= chance || dispatch.alert({
+	rollChance(chance) && dispatch.alert({
 		title: Locale("ALERT_TITLE"),
 		message: Locale("ALERT_MESSAGE", racers),
 		coords: start,
@@ -1835,9 +1859,7 @@ panel.rule("settings", (_key, next) => {
 	return typeof s.minBuyIn == "number" && typeof s.maxBuyIn == "number" && s.minBuyIn > s.maxBuyIn ? "ADMIN_ERR_BUYIN_RANGE" : null;
 }), aiLogChannels({ races: {} });
 const races = new Races(settings);
-onCharacter({ unloaded: (source) => races.unloaded(source) }), on("onResourceStop", (name) => {
-	name === ResourceName && races.cancelAll();
-});
+onCharacter({ unloaded: (source) => races.unloaded(source) }), onStop(() => races.cancelAll());
 const answer = (error) => error ? fail(error) : { ok: !0 };
 onClientCallback(EVENTS.create, {
 	args: ([buyIn, x, y]) => {
