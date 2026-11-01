@@ -9,7 +9,8 @@ import {
 import { Locale } from "common";
 import { EVENTS, type Settings } from "common/race";
 import { driving } from "./checks";
-import { StreetRace, type RaceHooks } from "./race";
+import { StreetRace } from "./race";
+import type { RaceHooks } from "./raceState";
 import { flatDistance } from "@aicore-fivem/lib/shared";
 
 /** Extra metres around the invite radius a racer may stand from the start (joining, and when the join time ends). */

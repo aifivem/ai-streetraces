@@ -343,7 +343,7 @@ function isNear(source, point, metres) {
 	return dx * dx + dy * dy + dz * dz <= metres * metres;
 }
 // ../../../packages/lib/src/server/gate.ts
-const core$27 = resourceExport(CORE.resource), log$6 = createLogger(GetCurrentResourceName()), hasCharacter = () => (source) => core$27.GetCharacter(source) !== null || "no character loaded", gates = new Set();
+const core$28 = resourceExport(CORE.resource), log$6 = createLogger(GetCurrentResourceName()), hasCharacter = () => (source) => core$28.GetCharacter(source) !== null || "no character loaded", gates = new Set();
 on("playerDropped", () => {
 	let source = Number(globalThis.source);
 	for (let gate of gates) gate.release(source);
@@ -388,7 +388,7 @@ var ClientGate = class {
 	}
 };
 // ../../../packages/lib/src/server/callback.ts
-const log$5 = createLogger(GetCurrentResourceName()), resource$1 = GetCurrentResourceName(), REFUSED = Symbol("refused");
+const log$5 = createLogger(GetCurrentResourceName()), resource$2 = GetCurrentResourceName(), REFUSED = Symbol("refused");
 function onClientCallback(name, first, second) {
 	let [handler, options] = typeof first == "function" ? [first, second ?? {}] : [second, first], gate = new ClientGate(name, options, 20);
 	onNet(requestEvent(name), async (caller, id, ...raw) => {
@@ -405,7 +405,7 @@ function onClientCallback(name, first, second) {
 	});
 }
 const pending = new Map();
-onNet(responseEvent(resource$1), (id, ok, result) => {
+onNet(responseEvent(resource$2), (id, ok, result) => {
 	let entry = typeof id == "number" ? pending.get(id) : void 0;
 	entry && entry.source === Number(globalThis.source) && (pending.delete(id), clearTimeout(entry.timer), ok === !0 ? entry.resolve(result) : entry.reject(Error("client callback failed")));
 });
@@ -451,7 +451,7 @@ function toPatch(value) {
 		default: return null;
 	}
 }
-const clone = (value) => value === void 0 ? value : JSON.parse(JSON.stringify(value)), core$26 = resourceExport(CORE.resource), ERR = {
+const clone = (value) => value === void 0 ? value : JSON.parse(JSON.stringify(value)), core$27 = resourceExport(CORE.resource), ERR = {
 	type: "ADMIN_ERR_TYPE",
 	range: "ADMIN_ERR_RANGE",
 	length: "ADMIN_ERR_LENGTH",
@@ -465,7 +465,7 @@ const clone = (value) => value === void 0 ? value : JSON.parse(JSON.stringify(va
 		if (cached && Date.now() - cached.at < 2e3) return cached.values.size > 0 ? cached.values : null;
 		let list = [];
 		try {
-			list = core$26.GetLookupValues(source);
+			list = core$27.GetLookupValues(source);
 		} catch {}
 		let values = new Set(Array.isArray(list) ? list.filter((v) => typeof v == "string") : []);
 		return this.lists.set(source, {
@@ -594,11 +594,7 @@ function applyEdit(data, patch, spec) {
 	}
 	return [spec.kind === "records" ? patch.key : void 0];
 }
-// ../../../packages/lib/src/server/admin/jsonSchema.ts
-const SCHEMA_KEY = {
-	type: "string",
-	description: "This file's JSON Schema (for editors)."
-};
+// ../../../packages/lib/src/server/admin/descriptions.ts
 function langFile(resource) {
 	try {
 		let raw = JSON.parse(LoadResourceFile(resource, "locales/en.json") ?? "{}");
@@ -625,6 +621,11 @@ function describe(schema, file, lang) {
 	for (let tab of schema.tabs) if (tab.file === file) for (let card of tab.cards) collect(card.fields, "", lang, out);
 	return out;
 }
+// ../../../packages/lib/src/server/admin/jsonSchema.ts
+const SCHEMA_KEY = {
+	type: "string",
+	description: "This file's JSON Schema (for editors)."
+};
 function toJson(spec, path, desc) {
 	let description = desc.get(path), base = description ? { description } : {};
 	switch (spec.type) {
@@ -729,27 +730,20 @@ function writeSchema(resource, name, text, log) {
 	let dir = `${GetResourcePath(resource)}/data/schemas`;
 	(0, node_fs_promises.mkdir)(dir, { recursive: !0 }).then(() => (0, node_fs_promises.writeFile)(`${dir}/${name}.schema.json`, text, "utf8")).catch((error) => log.error(`writing ${resource}/${path} failed`, error));
 }
-// ../../../packages/lib/src/server/admin/panel.ts
-const core$25 = resourceExport(CORE.resource);
-var AdminPanel = class {
+// ../../../packages/lib/src/server/admin/panelFiles.ts
+const core$26 = resourceExport(CORE.resource);
+var PanelFiles = class {
 	schema;
 	data = new Map();
 	dataFiles = new Map();
 	handlers = new Map();
-	rules = new Map();
-	actions = new Map();
 	views = new FileViews((file) => this.get(file));
 	worldChanges = new Map();
 	resource = GetCurrentResourceName();
 	log = createLogger(this.resource);
-	editor = 0;
 	constructor(schema) {
 		this.schema = schema;
 		for (let [name, spec] of Object.entries(schema.files)) this.load(name, spec);
-		registerExport("AdminPanelSnapshot", () => this.snapshot()), registerExport("AdminPanelData", () => this.dataSnapshot()), registerExport("AdminPanelSummary", () => this.summary()), registerExport("AdminPanelApply", (admin, patch) => this.apply(admin, patch)), onClientCallback(ADMIN.worldChangesCallback(this.resource), () => Object.fromEntries(this.worldChanges), { rate: {
-			count: 4,
-			windowMs: 1e4
-		} }), setImmediate(() => core$25.RegisterAdminPanel(this.resource));
 	}
 	get(file) {
 		return this.data.get(file) ?? {};
@@ -757,17 +751,68 @@ var AdminPanel = class {
 	onChange(file, handler) {
 		this.handlers.set(file, [...this.handlers.get(file) ?? [], handler]);
 	}
-	rule(file, rule) {
-		this.rules.set(file, rule);
-	}
-	onAction(id, handler) {
-		this.actions.set(id, handler);
-	}
 	view(file, read) {
 		return this.views.view(file, read);
 	}
 	records(file, readOne) {
 		return this.views.records(file, readOne);
+	}
+	commit(file, key, value) {
+		let data = this.data.get(file);
+		data && (key === void 0 ? isRecord(value) && this.data.set(file, clone(value)) : value === null ? delete data[key] : data[key] = clone(value), this.changed(file, key));
+	}
+	commitAfter(file, key, value) {
+		setImmediate(() => this.commit(file, key, value));
+	}
+	store(patch, spec) {
+		let data = this.data.get(patch.file) ?? {}, keys = applyEdit(data, patch, spec);
+		if (keys.length !== 0) {
+			this.data.set(patch.file, data);
+			for (let key of keys) this.changed(patch.file, key);
+		}
+	}
+	changed(file, key) {
+		let spec = this.schema.files[file], data = this.get(file), value = key === void 0 ? data : data[key] ?? null;
+		this.dataFiles.get(file)?.write(data), this.views.changed(file, key, value);
+		for (let handler of this.handlers.get(file) ?? []) handler(key, value);
+		if (core$26.AdminPanelChanged({
+			resource: this.resource,
+			file,
+			key,
+			value: clone(value)
+		}), spec?.sync !== "all") return;
+		let changes = this.worldChanges.get(file) ?? {};
+		changes[key ?? ""] = clone(value), this.worldChanges.set(file, changes), emitNet(ADMIN.worldEvent(this.resource), -1, file, key ?? null, value);
+	}
+	load(name, spec) {
+		if (spec.memory) {
+			this.data.set(name, {});
+			return;
+		}
+		let file = new DataFile(this.resource, name, this.log);
+		this.dataFiles.set(name, file), file.schemaRef = `./schemas/${name}.schema.json`, writeSchema(this.resource, name, fileSchema(this.resource, this.schema, name, spec), this.log);
+		let raw = file.read(), data = isRecord(raw) ? raw : {}, filled = !1;
+		if (spec.kind === "settings") for (let [section, value] of Object.entries(spec.defaults ?? {})) section in data || (data[section] = clone(value), filled = !0);
+		this.data.set(name, data), (filled || raw === null || !file.hasSchemaRef()) && file.write(data);
+	}
+};
+// ../../../packages/lib/src/server/admin/panel.ts
+const core$25 = resourceExport(CORE.resource);
+var AdminPanel = class extends PanelFiles {
+	rules = new Map();
+	actions = new Map();
+	editor = 0;
+	constructor(schema) {
+		super(schema), registerExport("AdminPanelSnapshot", () => this.snapshot()), registerExport("AdminPanelData", () => this.dataSnapshot()), registerExport("AdminPanelSummary", () => this.summary()), registerExport("AdminPanelApply", (admin, patch) => this.apply(admin, patch)), onClientCallback(ADMIN.worldChangesCallback(this.resource), () => Object.fromEntries(this.worldChanges), { rate: {
+			count: 4,
+			windowMs: 1e4
+		} }), setImmediate(() => core$25.RegisterAdminPanel(this.resource));
+	}
+	rule(file, rule) {
+		this.rules.set(file, rule);
+	}
+	onAction(id, handler) {
+		this.actions.set(id, handler);
 	}
 	snapshot() {
 		return {
@@ -845,44 +890,6 @@ var AdminPanel = class {
 			};
 		}
 	}
-	commit(file, key, value) {
-		let data = this.data.get(file);
-		data && (key === void 0 ? isRecord(value) && this.data.set(file, clone(value)) : value === null ? delete data[key] : data[key] = clone(value), this.changed(file, key));
-	}
-	commitAfter(file, key, value) {
-		setImmediate(() => this.commit(file, key, value));
-	}
-	store(patch, spec) {
-		let data = this.data.get(patch.file) ?? {}, keys = applyEdit(data, patch, spec);
-		if (keys.length !== 0) {
-			this.data.set(patch.file, data);
-			for (let key of keys) this.changed(patch.file, key);
-		}
-	}
-	changed(file, key) {
-		let spec = this.schema.files[file], data = this.get(file), value = key === void 0 ? data : data[key] ?? null;
-		this.dataFiles.get(file)?.write(data), this.views.changed(file, key, value);
-		for (let handler of this.handlers.get(file) ?? []) handler(key, value);
-		if (core$25.AdminPanelChanged({
-			resource: this.resource,
-			file,
-			key,
-			value: clone(value)
-		}), spec?.sync !== "all") return;
-		let changes = this.worldChanges.get(file) ?? {};
-		changes[key ?? ""] = clone(value), this.worldChanges.set(file, changes), emitNet(ADMIN.worldEvent(this.resource), -1, file, key ?? null, value);
-	}
-	load(name, spec) {
-		if (spec.memory) {
-			this.data.set(name, {});
-			return;
-		}
-		let file = new DataFile(this.resource, name, this.log);
-		this.dataFiles.set(name, file), file.schemaRef = `./schemas/${name}.schema.json`, writeSchema(this.resource, name, fileSchema(this.resource, this.schema, name, spec), this.log);
-		let raw = file.read(), data = isRecord(raw) ? raw : {}, filled = !1;
-		if (spec.kind === "settings") for (let [section, value] of Object.entries(spec.defaults ?? {})) section in data || (data[section] = clone(value), filled = !0);
-		this.data.set(name, data), (filled || raw === null || !file.hasSchemaRef()) && file.write(data);
-	}
 };
 function labelOf(record, path) {
 	if (!path) return null;
@@ -911,7 +918,7 @@ function notify(source, text, kind = "info", duration, title) {
 	emitNet(LIB_UI.notifyEvent, source, notification);
 }
 resourceExport(CORE.resource);
-// ../../../packages/lib/src/server/online.ts
+// ../../../packages/lib/src/server/online/mirror.ts
 const core$23 = resourceExport(CORE.resource);
 function reindex(index, source, before, after) {
 	for (let name of before) {
@@ -923,7 +930,7 @@ function reindex(index, source, before, after) {
 		set || index.set(name, set = new Set()), set.add(source);
 	}
 }
-var OnlinePlayers = class {
+var OnlineMirror = class {
 	players = new Map();
 	onDuty = new Map();
 	jobIndex = new Map();
@@ -975,6 +982,7 @@ var OnlinePlayers = class {
 		let set = this.onDuty.get(job);
 		set || this.onDuty.set(job, set = new Set()), set.add(source);
 	}
+}, OnlinePlayers = class extends OnlineMirror {
 	sources() {
 		return this.start(), this.players.keys();
 	}
@@ -1139,8 +1147,7 @@ new class {
 		return def === void 0 && this.gangs.set(name, def = core$19.GetGangDefinition(name) ?? null), def;
 	}
 }();
-// ../../../packages/lib/src/server/command.ts
-const resource = GetCurrentResourceName(), log$3 = createLogger(resource);
+const log$3 = createLogger(GetCurrentResourceName());
 let texts = null;
 const t = (key, ...args) => formatText((texts ??= loadLocaleTexts(CORE.resource))[key] ?? key, args);
 function reply(source, text, kind) {
@@ -1206,7 +1213,8 @@ var Command = class {
 		return args;
 	}
 };
-const commands = new class {
+// ../../../packages/lib/src/server/command/commandSet.ts
+const resource = GetCurrentResourceName(), commands = new class {
 	list = [];
 	sent = new Map();
 	announced = 0;
@@ -1232,6 +1240,7 @@ const commands = new class {
 		});
 	}
 }();
+// ../../../packages/lib/src/server/command/addCommand.ts
 function addCommand(name, options, handler) {
 	let names = (Array.isArray(name) ? name : [name]).map((n) => n.toLowerCase());
 	if (names.length === 0) throw Error("addCommand needs a name");
@@ -1257,47 +1266,8 @@ function onStop(fn) {
 		resource === self && fn();
 	});
 }
-let log = null;
-var ScheduledJob = class {
-	interval;
-	fn;
-	name;
-	gen = 0;
-	active = !1;
-	stopped = !1;
-	quietUntil = 0;
-	skipped = 0;
-	constructor(interval, fn, name) {
-		this.interval = interval, this.fn = fn, this.name = name;
-	}
-	get running() {
-		return this.active;
-	}
-	set(active) {
-		active === this.active || active && this.stopped || (this.active = active, active ? scheduler.activate(this) : scheduler.deactivate(this));
-	}
-	stop() {
-		this.set(!1), this.stopped = !0;
-	}
-	call() {
-		try {
-			let result = this.fn();
-			result instanceof Promise && result.catch((error) => this.fail(error));
-		} catch (error) {
-			this.fail(error);
-		}
-	}
-	fail(error) {
-		let now = GetGameTimer();
-		if (now < this.quietUntil) {
-			this.skipped++;
-			return;
-		}
-		this.quietUntil = now + 1e4;
-		let more = this.skipped ? ` (+${this.skipped} more)` : "";
-		this.skipped = 0, log ??= createLogger(GetCurrentResourceName()), log.error(`job "${this.name}" failed${more}`, error instanceof Error ? error.stack ?? error.message : error);
-	}
-}, Group = class {
+// ../../../packages/lib/src/fivem/scheduler/group.ts
+var Group = class {
 	interval;
 	jobs = Array(8);
 	gens = Array(8).fill(0);
@@ -1383,17 +1353,55 @@ const scheduler = new class {
 		groups.length = kept, this.nextDue = soonest;
 	};
 }();
+let log = null;
+var ScheduledJob = class {
+	interval;
+	fn;
+	name;
+	gen = 0;
+	active = !1;
+	stopped = !1;
+	quietUntil = 0;
+	skipped = 0;
+	constructor(interval, fn, name) {
+		this.interval = interval, this.fn = fn, this.name = name;
+	}
+	get running() {
+		return this.active;
+	}
+	set(active) {
+		active === this.active || active && this.stopped || (this.active = active, active ? scheduler.activate(this) : scheduler.deactivate(this));
+	}
+	stop() {
+		this.set(!1), this.stopped = !0;
+	}
+	call() {
+		try {
+			let result = this.fn();
+			result instanceof Promise && result.catch((error) => this.fail(error));
+		} catch (error) {
+			this.fail(error);
+		}
+	}
+	fail(error) {
+		let now = GetGameTimer();
+		if (now < this.quietUntil) {
+			this.skipped++;
+			return;
+		}
+		this.quietUntil = now + 1e4;
+		let more = this.skipped ? ` (+${this.skipped} more)` : "";
+		this.skipped = 0, log ??= createLogger(GetCurrentResourceName()), log.error(`job "${this.name}" failed${more}`, error instanceof Error ? error.stack ?? error.message : error);
+	}
+};
 function every(ms, fn, options = {}) {
 	let job = new ScheduledJob(Math.max(0, Math.floor(ms)), fn, options.name ?? (fn.name || "anonymous"));
 	return options.active !== !1 && job.set(!0), job;
 }
-IsDuplicityVersion(), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
+IsDuplicityVersion(), IsDuplicityVersion(), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
 // ../../../packages/lib/src/server/dispatch.ts
 const core$15 = resourceExport(CORE.resource), dispatch = { alert: (alert) => core$15.SendDispatchAlert(alert) };
 resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource), resourceExport(CORE.resource);
-// resource/common/locale.ts
-const Locale = createLocale();
-GetCurrentResourceName(), IsDuplicityVersion();
 // resource/common/race.ts
 const EVENTS = {
 	openMenu: "ai-streetraces:client:openMenu",
@@ -1438,279 +1446,7 @@ function readCoord(value) {
 	let v = readFinite(value);
 	return v !== null && Math.abs(v) < 1e4 ? v : null;
 }
-function sampleHolds(source, last, now) {
-	let p = coordsOf(source), limit = 120 * (now - last.at) / 1e3 + 30;
-	return flatDistance(p, last) <= limit ? {
-		x: p.x,
-		y: p.y,
-		at: now
-	} : null;
-}
-function sampleOf(source, now) {
-	let p = coordsOf(source);
-	return {
-		x: p.x,
-		y: p.y,
-		at: now
-	};
-}
-function driving(source) {
-	return vehicleOf(source, { driver: !0 }) !== 0;
-}
-function finishHolds(source, race, elapsed) {
-	return elapsed < 0 || flatDistance(coordsOf(source), race.finish) > 22 || !driving(source) ? !1 : elapsed >= flatDistance(race.start, race.finish) / 100 * 1e3 || (aiLog("races", `implausible finish in race ${race.id}`, {
-		level: "warn",
-		source,
-		metadata: { ms: elapsed }
-	}), !1);
-}
-function maybeAlertPolice(chance, start, racers, suspect) {
-	rollChance(chance) && dispatch.alert({
-		title: Locale("ALERT_TITLE"),
-		message: Locale("ALERT_MESSAGE", racers),
-		coords: start,
-		source: suspect,
-		icon: "flag-checkered"
-	});
-}
-// resource/server/purse.ts
-const core = resourceExport("ai-core");
-var Purse = class {
-	race;
-	account;
-	buyIn;
-	pot = 0;
-	constructor(race, account, buyIn) {
-		this.race = race, this.account = account, this.buyIn = buyIn;
-	}
-	take(source) {
-		return this.buyIn > 0 && !core.RemoveMoney(source, this.account, this.buyIn, `streetrace:${this.race}`) ? !1 : (this.pot += this.buyIn, !0);
-	}
-	refund(source) {
-		this.pot -= this.buyIn, this.pay(source, this.buyIn, "streetrace:refund");
-	}
-	pay(source, amount, reason) {
-		amount > 0 && !core.AddMoney(source, this.account, amount, reason) && aiLog("races", `payment of race ${this.race} failed`, {
-			level: "error",
-			source,
-			metadata: {
-				amount,
-				reason
-			}
-		});
-	}
-	takeAll() {
-		let pot = this.pot;
-		return this.pot = 0, pot;
-	}
-};
-// resource/server/race.ts
-const money = (amount) => groupDigits(amount);
-var StreetRace = class {
-	o;
-	hooks;
-	racers = new Map();
-	invited = new Set();
-	samples = new Map();
-	startAt = 0;
-	over = !1;
-	timer;
-	purse;
-	constructor(o, hooks) {
-		this.o = o, this.hooks = hooks, this.purse = new Purse(o.id, o.account, o.buyIn), this.timer = setTimeout(() => this.begin(), o.joinEndsAt - Date.now());
-	}
-	get open() {
-		return this.startAt === 0 && !this.over;
-	}
-	get running() {
-		return this.startAt !== 0 && !this.over;
-	}
-	invite() {
-		let { id, hostName, buyIn, start, joinEndsAt } = this.o;
-		return {
-			id,
-			hostName,
-			buyIn,
-			start,
-			joinEndsAt
-		};
-	}
-	view() {
-		return {
-			...this.invite(),
-			host: this.o.host,
-			finish: this.o.finish,
-			pot: this.purse.pot,
-			startAt: this.startAt,
-			racers: [...this.racers].map(([id, name]) => ({
-				id,
-				name
-			}))
-		};
-	}
-	join(source, name) {
-		if (!this.open) return "RACE_ERR_CLOSED";
-		if (this.racers.size >= this.o.maxRacers) return "RACE_ERR_FULL";
-		if (!this.purse.take(source)) return "RACE_ERR_MONEY";
-		for (let other of this.racers.keys()) emitNet(EVENTS.racer, other, {
-			id: source,
-			name
-		}, this.purse.pot);
-		return this.racers.set(source, name), this.invited.delete(source), emitNet(EVENTS.state, source, this.view(), Date.now()), aiLog("races", `joined race ${this.o.id}`, {
-			source,
-			metadata: {
-				buyIn: this.o.buyIn,
-				pot: this.purse.pot
-			}
-		}), null;
-	}
-	leave(source) {
-		if (!this.racers.has(source)) return;
-		if (this.open && source === this.o.host) return this.cancel("RACE_CANCELLED_HOST");
-		let refund = this.open;
-		this.remove(source, refund), notify(source, refund ? Locale("RACE_LEFT_REFUND", money(this.o.buyIn)) : Locale("RACE_LEFT_LOST"), refund ? "info" : "error"), this.racers.size === 0 && this.end();
-	}
-	begin() {
-		if (!this.open) return "RACE_ERR_CLOSED";
-		clearTimeout(this.timer), this.uninviteAll();
-		for (let source of this.racers.keys()) isNear(source, this.o.start, this.o.readyRadius) && driving(source) || (this.remove(source, !0), notify(source, Locale("RACE_NOT_READY", money(this.o.buyIn)), "error"));
-		if (this.racers.size < 2) return this.cancel("RACE_CANCELLED_EMPTY"), null;
-		let now = Date.now();
-		this.startAt = now + COUNTDOWN_MS;
-		for (let source of this.racers.keys()) this.samples.set(source, sampleOf(source, now));
-		for (let source of this.racers.keys()) emitNet(EVENTS.start, source, this.startAt, now);
-		return this.timer = setTimeout(() => this.timeout(), COUNTDOWN_MS + this.o.maxMs), aiLog("races", `race ${this.o.id} started`, { metadata: {
-			racers: this.racers.size,
-			pot: this.purse.pot
-		} }), maybeAlertPolice(this.o.alertChance, this.o.start, this.racers.size, this.racers.keys().next().value), null;
-	}
-	sample(now) {
-		if (this.running) for (let source of this.racers.keys()) this.moveHolds(source, now);
-	}
-	moveHolds(source, now) {
-		let last = this.samples.get(source), next = last ? sampleHolds(source, last, now) : sampleOf(source, now);
-		return next ? (this.samples.set(source, next), !0) : (aiLog("races", `disqualified from race ${this.o.id}: moved too fast`, {
-			level: "warn",
-			source,
-			metadata: {
-				from: last,
-				to: sampleOf(source, now)
-			}
-		}), this.remove(source, !1), notify(source, Locale("RACE_DISQUALIFIED"), "error"), this.racers.size === 0 && this.end(), !1);
-	}
-	finish(source) {
-		if (!this.racers.has(source) || this.over || this.startAt === 0) return !1;
-		let now = Date.now();
-		if (!this.moveHolds(source, now)) return !1;
-		let elapsed = now - this.startAt;
-		if (!finishHolds(source, this.o, elapsed)) return !1;
-		let pot = this.purse.takeAll();
-		this.purse.pay(source, pot, "streetrace:won");
-		let name = this.racers.get(source) ?? "";
-		for (let racer of this.racers.keys()) notify(racer, racer === source ? Locale("RACE_WON", money(pot)) : Locale("RACE_LOST", name, money(pot)), racer === source ? "success" : "info", 8e3);
-		return aiLog("races", `race ${this.o.id} won`, {
-			source,
-			metadata: {
-				pot,
-				ms: elapsed
-			}
-		}), this.end(), !0;
-	}
-	cancel(key) {
-		if (!this.over) {
-			for (let source of this.racers.keys()) this.purse.refund(source), notify(source, Locale(key, money(this.o.buyIn)), "info");
-			this.end();
-		}
-	}
-	timeout() {
-		if (this.over) return;
-		let share = Math.floor(this.purse.takeAll() / this.racers.size);
-		for (let source of this.racers.keys()) this.purse.pay(source, share, "streetrace:split"), notify(source, Locale("RACE_TIMEOUT", money(share)), "info");
-		this.end();
-	}
-	remove(source, refund) {
-		this.racers.delete(source), this.samples.delete(source), refund && this.purse.refund(source), this.hooks.out(source), emitNet(EVENTS.ended, source);
-		for (let other of this.racers.keys()) emitNet(EVENTS.racerLeft, other, source, this.purse.pot);
-	}
-	uninviteAll() {
-		for (let source of this.invited) emitNet(EVENTS.uninvite, source, this.o.id);
-		this.invited.clear();
-	}
-	end() {
-		let forfeited = this.purse.takeAll();
-		forfeited > 0 && aiLog("races", `race ${this.o.id} ended with buy-ins forfeited`, { metadata: { forfeited } }), this.over = !0, clearTimeout(this.timer), this.uninviteAll();
-		for (let source of this.racers.keys()) this.hooks.out(source), emitNet(EVENTS.ended, source);
-		this.racers.clear(), this.samples.clear(), this.hooks.ended(this);
-	}
-}, Races = class {
-	settings;
-	byId = new Map();
-	byRacer = new Map();
-	nextId = 1;
-	sampler = every(2e3, () => {
-		let now = Date.now();
-		for (let race of this.byId.values()) race.sample(now);
-	}, {
-		active: !1,
-		name: "race positions"
-	});
-	hooks = {
-		out: (source) => this.byRacer.delete(source),
-		ended: (race) => {
-			this.byId.delete(race.o.id), this.byId.size === 0 && this.sampler.set(!1);
-		}
-	};
-	constructor(settings) {
-		this.settings = settings;
-	}
-	of(source) {
-		return this.byRacer.get(source);
-	}
-	create(source, buyIn, finish) {
-		let s = this.settings.value;
-		if (this.byRacer.has(source)) return "RACE_ERR_ALREADY";
-		if (buyIn < s.minBuyIn || buyIn > s.maxBuyIn) return "RACE_ERR_BUYIN";
-		if (!driving(source)) return "RACE_ERR_VEHICLE";
-		let start = coordsOf(source);
-		if (flatDistance(start, finish) < s.minDistance) return "RACE_ERR_SHORT";
-		let race = new StreetRace({
-			id: this.nextId++,
-			host: source,
-			hostName: online.name(source),
-			start,
-			finish,
-			buyIn,
-			account: s.account,
-			joinEndsAt: Date.now() + s.joinSeconds * 1e3,
-			maxMs: s.maxMinutes * 6e4,
-			maxRacers: s.maxRacers,
-			readyRadius: s.inviteRadius + 25,
-			alertChance: s.alertChance
-		}, this.hooks), error = race.join(source, race.o.hostName);
-		if (error) return race.cancel("RACE_CANCELLED_EMPTY"), error;
-		this.byId.set(race.o.id, race), this.byRacer.set(source, race), this.sampler.set(!0);
-		let now = Date.now();
-		for (let other of playersNear(source, s.inviteRadius)) other === source || this.byRacer.has(other) || online.character(other) && (race.invited.add(other), emitNet(EVENTS.invite, other, race.invite(), now));
-		return notify(source, Locale("RACE_CREATED", race.invited.size, s.joinSeconds), "success", 6e3), null;
-	}
-	join(source, id) {
-		if (this.byRacer.has(source)) return "RACE_ERR_ALREADY";
-		let race = this.byId.get(id);
-		return race?.open ? race.invited.has(source) ? isNear(source, race.o.start, race.o.readyRadius) ? driving(source) ? race.join(source, online.name(source)) || (this.byRacer.set(source, race), null) : "RACE_ERR_VEHICLE" : "RACE_ERR_FAR" : "RACE_ERR_INVITE" : "RACE_ERR_CLOSED";
-	}
-	begin(source) {
-		let race = this.byRacer.get(source);
-		return !race?.open || race.o.host !== source ? "RACE_ERR_HOST" : race.racers.size < 2 ? "RACE_ERR_ALONE" : race.begin();
-	}
-	unloaded(source) {
-		this.byRacer.get(source)?.leave(source);
-		for (let race of this.byId.values()) race.invited.delete(source);
-	}
-	cancelAll() {
-		for (let race of this.byId.values()) race.cancel("RACE_CANCELLED_STOP");
-	}
-};
-// resource/server/index.ts
+// resource/server/content.ts
 const panel = new AdminPanel({
 	title: "ADMIN_TITLE",
 	icon: "flag-checkered",
@@ -1886,7 +1622,285 @@ const panel = new AdminPanel({
 panel.rule("settings", (_key, next) => {
 	let s = record(next);
 	return typeof s.minBuyIn == "number" && typeof s.maxBuyIn == "number" && s.minBuyIn > s.maxBuyIn ? "ADMIN_ERR_BUYIN_RANGE" : null;
-}), aiLogChannels({ races: {} });
+});
+// resource/common/locale.ts
+const Locale = createLocale();
+GetCurrentResourceName(), IsDuplicityVersion();
+function sampleHolds(source, last, now) {
+	let p = coordsOf(source), limit = 120 * (now - last.at) / 1e3 + 30;
+	return flatDistance(p, last) <= limit ? {
+		x: p.x,
+		y: p.y,
+		at: now
+	} : null;
+}
+function sampleOf(source, now) {
+	let p = coordsOf(source);
+	return {
+		x: p.x,
+		y: p.y,
+		at: now
+	};
+}
+function driving(source) {
+	return vehicleOf(source, { driver: !0 }) !== 0;
+}
+function finishHolds(source, race, elapsed) {
+	return elapsed < 0 || flatDistance(coordsOf(source), race.finish) > 22 || !driving(source) ? !1 : elapsed >= flatDistance(race.start, race.finish) / 100 * 1e3 || (aiLog("races", `implausible finish in race ${race.id}`, {
+		level: "warn",
+		source,
+		metadata: { ms: elapsed }
+	}), !1);
+}
+function maybeAlertPolice(chance, start, racers, suspect) {
+	rollChance(chance) && dispatch.alert({
+		title: Locale("ALERT_TITLE"),
+		message: Locale("ALERT_MESSAGE", racers),
+		coords: start,
+		source: suspect,
+		icon: "flag-checkered"
+	});
+}
+// resource/server/races/purse.ts
+const core = resourceExport("ai-core");
+var Purse = class {
+	race;
+	account;
+	buyIn;
+	pot = 0;
+	constructor(race, account, buyIn) {
+		this.race = race, this.account = account, this.buyIn = buyIn;
+	}
+	take(source) {
+		return this.buyIn > 0 && !core.RemoveMoney(source, this.account, this.buyIn, `streetrace:${this.race}`) ? !1 : (this.pot += this.buyIn, !0);
+	}
+	refund(source) {
+		this.pot -= this.buyIn, this.pay(source, this.buyIn, "streetrace:refund");
+	}
+	pay(source, amount, reason) {
+		amount > 0 && !core.AddMoney(source, this.account, amount, reason) && aiLog("races", `payment of race ${this.race} failed`, {
+			level: "error",
+			source,
+			metadata: {
+				amount,
+				reason
+			}
+		});
+	}
+	takeAll() {
+		let pot = this.pot;
+		return this.pot = 0, pot;
+	}
+};
+// resource/server/races/raceState.ts
+const money = (amount) => groupDigits(amount);
+var RaceState = class {
+	o;
+	hooks;
+	racers = new Map();
+	invited = new Set();
+	samples = new Map();
+	startAt = 0;
+	over = !1;
+	timer;
+	purse;
+	constructor(o, hooks) {
+		this.o = o, this.hooks = hooks, this.purse = new Purse(o.id, o.account, o.buyIn), this.timer = setTimeout(() => this.begin(), o.joinEndsAt - Date.now());
+	}
+	get open() {
+		return this.startAt === 0 && !this.over;
+	}
+	get running() {
+		return this.startAt !== 0 && !this.over;
+	}
+	invite() {
+		let { id, hostName, buyIn, start, joinEndsAt } = this.o;
+		return {
+			id,
+			hostName,
+			buyIn,
+			start,
+			joinEndsAt
+		};
+	}
+	view() {
+		return {
+			...this.invite(),
+			host: this.o.host,
+			finish: this.o.finish,
+			pot: this.purse.pot,
+			startAt: this.startAt,
+			racers: [...this.racers].map(([id, name]) => ({
+				id,
+				name
+			}))
+		};
+	}
+	cancel(key) {
+		if (!this.over) {
+			for (let source of this.racers.keys()) this.purse.refund(source), notify(source, Locale(key, money(this.o.buyIn)), "info");
+			this.end();
+		}
+	}
+	remove(source, refund) {
+		this.racers.delete(source), this.samples.delete(source), refund && this.purse.refund(source), this.hooks.out(source), emitNet(EVENTS.ended, source);
+		for (let other of this.racers.keys()) emitNet(EVENTS.racerLeft, other, source, this.purse.pot);
+	}
+	uninviteAll() {
+		for (let source of this.invited) emitNet(EVENTS.uninvite, source, this.o.id);
+		this.invited.clear();
+	}
+	end() {
+		let forfeited = this.purse.takeAll();
+		forfeited > 0 && aiLog("races", `race ${this.o.id} ended with buy-ins forfeited`, { metadata: { forfeited } }), this.over = !0, clearTimeout(this.timer), this.uninviteAll();
+		for (let source of this.racers.keys()) this.hooks.out(source), emitNet(EVENTS.ended, source);
+		this.racers.clear(), this.samples.clear(), this.hooks.ended(this);
+	}
+}, StreetRace = class extends RaceState {
+	join(source, name) {
+		if (!this.open) return "RACE_ERR_CLOSED";
+		if (this.racers.size >= this.o.maxRacers) return "RACE_ERR_FULL";
+		if (!this.purse.take(source)) return "RACE_ERR_MONEY";
+		for (let other of this.racers.keys()) emitNet(EVENTS.racer, other, {
+			id: source,
+			name
+		}, this.purse.pot);
+		return this.racers.set(source, name), this.invited.delete(source), emitNet(EVENTS.state, source, this.view(), Date.now()), aiLog("races", `joined race ${this.o.id}`, {
+			source,
+			metadata: {
+				buyIn: this.o.buyIn,
+				pot: this.purse.pot
+			}
+		}), null;
+	}
+	leave(source) {
+		if (!this.racers.has(source)) return;
+		if (this.open && source === this.o.host) return this.cancel("RACE_CANCELLED_HOST");
+		let refund = this.open;
+		this.remove(source, refund), notify(source, refund ? Locale("RACE_LEFT_REFUND", money(this.o.buyIn)) : Locale("RACE_LEFT_LOST"), refund ? "info" : "error"), this.racers.size === 0 && this.end();
+	}
+	begin() {
+		if (!this.open) return "RACE_ERR_CLOSED";
+		clearTimeout(this.timer), this.uninviteAll();
+		for (let source of this.racers.keys()) isNear(source, this.o.start, this.o.readyRadius) && driving(source) || (this.remove(source, !0), notify(source, Locale("RACE_NOT_READY", money(this.o.buyIn)), "error"));
+		if (this.racers.size < 2) return this.cancel("RACE_CANCELLED_EMPTY"), null;
+		let now = Date.now();
+		this.startAt = now + COUNTDOWN_MS;
+		for (let source of this.racers.keys()) this.samples.set(source, sampleOf(source, now));
+		for (let source of this.racers.keys()) emitNet(EVENTS.start, source, this.startAt, now);
+		return this.timer = setTimeout(() => this.timeout(), COUNTDOWN_MS + this.o.maxMs), aiLog("races", `race ${this.o.id} started`, { metadata: {
+			racers: this.racers.size,
+			pot: this.purse.pot
+		} }), maybeAlertPolice(this.o.alertChance, this.o.start, this.racers.size, this.racers.keys().next().value), null;
+	}
+	sample(now) {
+		if (this.running) for (let source of this.racers.keys()) this.moveHolds(source, now);
+	}
+	moveHolds(source, now) {
+		let last = this.samples.get(source), next = last ? sampleHolds(source, last, now) : sampleOf(source, now);
+		return next ? (this.samples.set(source, next), !0) : (aiLog("races", `disqualified from race ${this.o.id}: moved too fast`, {
+			level: "warn",
+			source,
+			metadata: {
+				from: last,
+				to: sampleOf(source, now)
+			}
+		}), this.remove(source, !1), notify(source, Locale("RACE_DISQUALIFIED"), "error"), this.racers.size === 0 && this.end(), !1);
+	}
+	finish(source) {
+		if (!this.racers.has(source) || this.over || this.startAt === 0) return !1;
+		let now = Date.now();
+		if (!this.moveHolds(source, now)) return !1;
+		let elapsed = now - this.startAt;
+		if (!finishHolds(source, this.o, elapsed)) return !1;
+		let pot = this.purse.takeAll();
+		this.purse.pay(source, pot, "streetrace:won");
+		let name = this.racers.get(source) ?? "";
+		for (let racer of this.racers.keys()) notify(racer, racer === source ? Locale("RACE_WON", money(pot)) : Locale("RACE_LOST", name, money(pot)), racer === source ? "success" : "info", 8e3);
+		return aiLog("races", `race ${this.o.id} won`, {
+			source,
+			metadata: {
+				pot,
+				ms: elapsed
+			}
+		}), this.end(), !0;
+	}
+	timeout() {
+		if (this.over) return;
+		let share = Math.floor(this.purse.takeAll() / this.racers.size);
+		for (let source of this.racers.keys()) this.purse.pay(source, share, "streetrace:split"), notify(source, Locale("RACE_TIMEOUT", money(share)), "info");
+		this.end();
+	}
+}, Races = class {
+	settings;
+	byId = new Map();
+	byRacer = new Map();
+	nextId = 1;
+	sampler = every(2e3, () => {
+		let now = Date.now();
+		for (let race of this.byId.values()) race.sample(now);
+	}, {
+		active: !1,
+		name: "race positions"
+	});
+	hooks = {
+		out: (source) => this.byRacer.delete(source),
+		ended: (race) => {
+			this.byId.delete(race.o.id), this.byId.size === 0 && this.sampler.set(!1);
+		}
+	};
+	constructor(settings) {
+		this.settings = settings;
+	}
+	of(source) {
+		return this.byRacer.get(source);
+	}
+	create(source, buyIn, finish) {
+		let s = this.settings.value;
+		if (this.byRacer.has(source)) return "RACE_ERR_ALREADY";
+		if (buyIn < s.minBuyIn || buyIn > s.maxBuyIn) return "RACE_ERR_BUYIN";
+		if (!driving(source)) return "RACE_ERR_VEHICLE";
+		let start = coordsOf(source);
+		if (flatDistance(start, finish) < s.minDistance) return "RACE_ERR_SHORT";
+		let race = new StreetRace({
+			id: this.nextId++,
+			host: source,
+			hostName: online.name(source),
+			start,
+			finish,
+			buyIn,
+			account: s.account,
+			joinEndsAt: Date.now() + s.joinSeconds * 1e3,
+			maxMs: s.maxMinutes * 6e4,
+			maxRacers: s.maxRacers,
+			readyRadius: s.inviteRadius + 25,
+			alertChance: s.alertChance
+		}, this.hooks), error = race.join(source, race.o.hostName);
+		if (error) return race.cancel("RACE_CANCELLED_EMPTY"), error;
+		this.byId.set(race.o.id, race), this.byRacer.set(source, race), this.sampler.set(!0);
+		let now = Date.now();
+		for (let other of playersNear(source, s.inviteRadius)) other === source || this.byRacer.has(other) || online.character(other) && (race.invited.add(other), emitNet(EVENTS.invite, other, race.invite(), now));
+		return notify(source, Locale("RACE_CREATED", race.invited.size, s.joinSeconds), "success", 6e3), null;
+	}
+	join(source, id) {
+		if (this.byRacer.has(source)) return "RACE_ERR_ALREADY";
+		let race = this.byId.get(id);
+		return race?.open ? race.invited.has(source) ? isNear(source, race.o.start, race.o.readyRadius) ? driving(source) ? race.join(source, online.name(source)) || (this.byRacer.set(source, race), null) : "RACE_ERR_VEHICLE" : "RACE_ERR_FAR" : "RACE_ERR_INVITE" : "RACE_ERR_CLOSED";
+	}
+	begin(source) {
+		let race = this.byRacer.get(source);
+		return !race?.open || race.o.host !== source ? "RACE_ERR_HOST" : race.racers.size < 2 ? "RACE_ERR_ALONE" : race.begin();
+	}
+	unloaded(source) {
+		this.byRacer.get(source)?.leave(source);
+		for (let race of this.byId.values()) race.invited.delete(source);
+	}
+	cancelAll() {
+		for (let race of this.byId.values()) race.cancel("RACE_CANCELLED_STOP");
+	}
+};
+// resource/server/races/index.ts
+aiLogChannels({ races: {} });
 const races = new Races(settings);
 onCharacter({ unloaded: (source) => races.unloaded(source) }), onStop(() => races.cancelAll());
 const answer = (error) => error ? fail(error) : { ok: !0 };
