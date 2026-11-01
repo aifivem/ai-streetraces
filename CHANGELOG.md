@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/aifivem/ai-streetraces/compare/v0.1.2...v0.1.3) (2026-11-01)
+
+
+### Code Refactoring
+
+* feature folders, side entries that only import, panel schema per tab ([114bf4a](https://github.com/aifivem/ai-streetraces/commit/114bf4ae9dfade104d432e1e97c4b35995551f3f))
+
 ## [0.1.2](https://github.com/aifivem/ai-streetraces/compare/v0.1.1...v0.1.2) (2026-10-31)
 
 
