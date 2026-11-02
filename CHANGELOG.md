@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.5](https://github.com/aifivem/ai-streetraces/compare/v0.1.4...v0.1.5) (2026-11-02)
+
+
+### Documentation
+
+* install from the release zip ([108dd98](https://github.com/aifivem/ai-streetraces/commit/108dd98abb932afe18b29348e936f9411ad13110))
+
+
+### Miscellaneous Chores
+
+* build files are no longer in git, the release zip carries them ([46362b9](https://github.com/aifivem/ai-streetraces/commit/46362b97babe284b7d503b58ca8f7522c71a2173))
+
 ## [0.1.4](https://github.com/aifivem/ai-streetraces/compare/v0.1.3...v0.1.4) (2026-11-02)
 
 

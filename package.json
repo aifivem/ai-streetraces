@@ -1,6 +1,6 @@
 {
   "name": "ai-streetraces",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "description": "Street races started by players: a finish point, a buy-in, racers nearby join",
   "license": "GPL-3.0-only",
