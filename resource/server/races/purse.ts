@@ -1,4 +1,4 @@
-import { aiLog, resourceExport } from "@aicore-fivem/lib/server";
+import { aiLog, resourceExport } from "@aifivem/lib/server";
 
 const core = resourceExport("ai-core");
 

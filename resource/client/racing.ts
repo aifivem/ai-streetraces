@@ -3,8 +3,8 @@ import {
   callAction,
   drivenVehicle,
   notify,
-} from "@aicore-fivem/lib/client";
-import { groupDigits, ServerClock } from "@aicore-fivem/lib/shared";
+} from "@aifivem/lib/client";
+import { groupDigits, ServerClock } from "@aifivem/lib/shared";
 import { Locale } from "common";
 import {
   COUNTDOWN_MS,

@@ -1,5 +1,5 @@
-import { notify, radial } from "@aicore-fivem/lib/client";
-import { groupDigits } from "@aicore-fivem/lib/shared";
+import { notify, radial } from "@aifivem/lib/client";
+import { groupDigits } from "@aifivem/lib/shared";
 import { Locale } from "common";
 import type { InviteView } from "common/race";
 

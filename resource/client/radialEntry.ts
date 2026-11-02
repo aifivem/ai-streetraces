@@ -1,4 +1,4 @@
-import { onServerEvent, radial } from "@aicore-fivem/lib/client";
+import { onServerEvent, radial } from "@aifivem/lib/client";
 import { Locale } from "common";
 import { EVENTS } from "common/race";
 import { isDriver, openMenu } from "./menu";

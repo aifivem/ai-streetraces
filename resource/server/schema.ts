@@ -1,4 +1,4 @@
-import type { PanelSchema } from "@aicore-fivem/shared";
+import type { PanelSchema } from "@aifivem/shared";
 import { DEFAULT_SETTINGS } from "common/race";
 
 /** ai-streetraces' panel: one settings file (buy-in limits, join time, racers, police alerts). */

@@ -1,5 +1,5 @@
-import { aiLog, notify } from "@aicore-fivem/lib/server";
-import { groupDigits, type Vec3 } from "@aicore-fivem/lib/shared";
+import { aiLog, notify } from "@aifivem/lib/server";
+import { groupDigits, type Vec3 } from "@aifivem/lib/shared";
 import { Locale } from "common";
 import { EVENTS, type InviteView, type RaceView } from "common/race";
 import type { Sample } from "./checks";

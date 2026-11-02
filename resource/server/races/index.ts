@@ -5,8 +5,8 @@ import {
   onCharacter,
   onClientCallback,
   onStop,
-} from "@aicore-fivem/lib/server";
-import { fail, oneArg, readId, readInt } from "@aicore-fivem/lib/shared";
+} from "@aifivem/lib/server";
+import { fail, oneArg, readId, readInt } from "@aifivem/lib/shared";
 import { Locale } from "common";
 import { EVENTS, readCoord } from "common/race";
 import { settings } from "../content";

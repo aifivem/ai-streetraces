@@ -1,5 +1,5 @@
-import { onServerEvent, radial } from "@aicore-fivem/lib/client";
-import { oneArg, readFinite, readId } from "@aicore-fivem/lib/shared";
+import { onServerEvent, radial } from "@aifivem/lib/client";
+import { oneArg, readFinite, readId } from "@aifivem/lib/shared";
 import { EVENTS, readInvite, readRaceView, readRacer } from "common/race";
 import { invites, racing } from "./state";
 

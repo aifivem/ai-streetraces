@@ -1,8 +1,8 @@
-import { aiLog, coordsOf, dispatch, vehicleOf } from "@aicore-fivem/lib/server";
-import type { Vec3 } from "@aicore-fivem/lib/shared";
+import { aiLog, coordsOf, dispatch, vehicleOf } from "@aifivem/lib/server";
+import type { Vec3 } from "@aifivem/lib/shared";
 import { Locale } from "common";
 import { FINISH_RADIUS, MAX_SPEED } from "common/race";
-import { flatDistance, rollChance } from "@aicore-fivem/lib/shared";
+import { flatDistance, rollChance } from "@aifivem/lib/shared";
 
 /** Slack on top of the finish radius for the server's position check (the client checks at the radius). */
 const FINISH_SLACK = 10;

@@ -5,9 +5,9 @@ import {
   player,
   TickLoop,
   Zones,
-} from "@aicore-fivem/lib/client";
+} from "@aifivem/lib/client";
 import { Locale } from "common";
-import { flatDistance } from "@aicore-fivem/lib/shared";
+import { flatDistance } from "@aifivem/lib/shared";
 import { FINISH_RADIUS } from "common/race";
 
 /** Distance from the finish at which its marker is drawn. */

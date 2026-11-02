@@ -1,4 +1,4 @@
-import { AdminWorld } from "@aicore-fivem/lib/client";
+import { AdminWorld } from "@aifivem/lib/client";
 import { readSettings } from "common/race";
 import { Invites } from "./invites";
 import { Racing } from "./racing";
