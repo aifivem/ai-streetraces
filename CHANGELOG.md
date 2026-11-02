@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/aifivem/ai-streetraces/compare/v0.1.3...v0.1.4) (2026-11-02)
+
+
+### Code Refactoring
+
+* import the shared packages from [@aifivem](https://github.com/aifivem) ([24cabda](https://github.com/aifivem/ai-streetraces/commit/24cabda3a9f8c08b99e69d5edd169231901dc757))
+
 ## [0.1.3](https://github.com/aifivem/ai-streetraces/compare/v0.1.2...v0.1.3) (2026-11-01)
 
 
